@@ -6,8 +6,9 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../columns.helpers';
-import { createSelectSchema } from 'drizzle-zod';
-import { InferSelectModel } from 'drizzle-orm';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { InferSelectModel, relations } from 'drizzle-orm';
+import { articles } from './article.entity';
 
 export const users = pgTable(
   'users',
@@ -26,14 +27,15 @@ export const users = pgTable(
   ],
 );
 
+export const userRelations = relations(users, ({ many }) => ({
+  articles: many(articles),
+}));
+
 // Schema for inserting a user - can be used for validation
-export const insertUserSchema = createSelectSchema(users);
+export const insertUserSchema = createInsertSchema(users);
 
 // Schema for selecting a user - can be used for validation and type inference
 export const selectUserSchema = createSelectSchema(users);
 
 // TypeScript type for a user
 export type User = InferSelectModel<typeof users>;
-
-// Follow relations are handled separately in Drizzle
-// You would define them in a separate file and use relations

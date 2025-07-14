@@ -1,3 +1,4 @@
+import { articles } from './entities/article.entity';
 import { follows } from './entities/follow.entity';
 import { users } from './entities/user.entity';
 
@@ -5,5 +6,6 @@ import { users } from './entities/user.entity';
 export const schema = {
   users,
   follows,
+  articles,
 };
 export type Schema = typeof schema;
