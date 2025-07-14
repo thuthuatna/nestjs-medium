@@ -1,7 +1,8 @@
 import { pgTable, primaryKey, integer } from 'drizzle-orm/pg-core';
 import { timestamps } from '../columns.helpers';
 import { users } from './user.entity';
-import { relations } from 'drizzle-orm';
+import { InferSelectModel, relations } from 'drizzle-orm';
+import { createSelectSchema } from 'drizzle-zod';
 
 export const follows = pgTable(
   'follows',
@@ -36,3 +37,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   followers: many(follows, { relationName: 'following' }),
   following: many(follows, { relationName: 'follower' }),
 }));
+
+export const insertFollowSchema = createSelectSchema(follows);
+
+export const selectFollowSchema = createSelectSchema(follows);
+
+export type Follow = InferSelectModel<typeof follows>;
