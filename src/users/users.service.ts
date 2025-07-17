@@ -3,13 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { eq, or } from 'drizzle-orm';
-import { CreateUserDto } from 'src/auth/dtos/create-user.dto';
-import { DrizzleService } from 'src/database/drizzle.service';
-import { users } from 'src/database/entities/user.entity';
 import * as bcrypt from 'bcrypt';
-import { JwtPayloadType } from 'src/auth/strategies/types/jwt-payload.type';
-import { ResponseUserDto } from 'src/auth/dtos/response-user.dto';
+import { eq, or } from 'drizzle-orm';
+import { CreateUserDto } from '../auth/dtos/create-user.dto';
+import { ResponseUserDto } from '../auth/dtos/response-user.dto';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { DrizzleService } from '../database/drizzle.service';
+import { User, users } from '../database/entities/user.entity';
 import { UpdateUserDto } from './dtos/update-user.dto';
 
 @Injectable()
@@ -49,7 +49,7 @@ export class UsersService {
     return savedUser;
   }
 
-  async findByEmail(email: string) {
+  async findByEmail(email: string): Promise<User | null> {
     const [user] = await this.drizzleService.db
       .select()
       .from(users)

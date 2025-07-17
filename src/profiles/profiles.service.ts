@@ -1,9 +1,9 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { DrizzleService } from '../database/drizzle.service';
-import { IProfileResponse } from './types/profile-response.interface';
-import { users } from 'src/database/entities/user.entity';
 import { and, eq } from 'drizzle-orm';
-import { follows } from 'src/database/entities/follow.entity';
+import { DrizzleService } from '../database/drizzle.service';
+import { follows } from '../database/entities/follow.entity';
+import { users } from '../database/entities/user.entity';
+import { IProfileResponse } from './types/profile-response.interface';
 
 @Injectable()
 export class ProfilesService {

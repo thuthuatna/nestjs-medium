@@ -6,11 +6,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalAuthGuard } from '../auth/option-auth.guard';
+import { CurrentUser } from '../common/decorators/user.decorator';
 import { ProfilesService } from './profiles.service';
-import { CurrentUser } from 'src/common/decorators/user.decorator';
 import { IProfileResponse } from './types/profile-response.interface';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { OptionalAuthGuard } from 'src/auth/option-auth.guard';
 
 @Controller('profiles')
 export class ProfilesController {
