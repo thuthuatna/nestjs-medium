@@ -8,6 +8,41 @@
       "when": 1752488900114,
       "tag": "0000_init-database",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1752661460692,
+      "tag": "0001_favorite",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752661479674,
+      "tag": "0002_comment",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1752661490176,
+      "tag": "0003_tag",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1752662015193,
+      "tag": "0004_article-tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1752718956053,
+      "tag": "0005_remove-favorited",
+      "breakpoints": true
     }
   ]
 }

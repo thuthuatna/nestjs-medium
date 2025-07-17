@@ -9,6 +9,7 @@ import { timestamps } from '../columns.helpers';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { InferSelectModel, relations } from 'drizzle-orm';
 import { articles } from './article.entity';
+import { userFavoriteArticles } from './user-favorite-articles';
 
 export const users = pgTable(
   'users',
@@ -29,6 +30,7 @@ export const users = pgTable(
 
 export const userRelations = relations(users, ({ many }) => ({
   articles: many(articles),
+  favorites: many(userFavoriteArticles),
 }));
 
 // Schema for inserting a user - can be used for validation

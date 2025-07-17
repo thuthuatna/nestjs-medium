@@ -10,7 +10,7 @@ export class ProfilesService {
   constructor(private readonly drizzleService: DrizzleService) {}
 
   async getProfile(
-    currentUserId: number,
+    currentUserId: number | undefined,
     profileUsername: string,
   ): Promise<IProfileResponse> {
     const profileResults = await this.drizzleService.db
@@ -30,7 +30,7 @@ export class ProfilesService {
         .where(
           and(
             eq(follows.followerId, currentUserId),
-            eq(follows.followingId, profile[0].id),
+            eq(follows.followingId, profile.id),
           ),
         );
       following = Boolean(follow.length);

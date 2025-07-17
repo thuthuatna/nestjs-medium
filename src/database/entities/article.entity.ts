@@ -3,6 +3,8 @@ import { integer, pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { timestamps } from '../columns.helpers';
 import { users } from './user.entity';
+import { userFavoriteArticles } from './user-favorite-articles';
+import { comments } from './comment.entity';
 
 export const articles = pgTable('articles', {
   id: serial('id').primaryKey(),
@@ -10,8 +12,7 @@ export const articles = pgTable('articles', {
   title: text('title').notNull(),
   description: text('description').notNull(),
   body: text('body').notNull(),
-  tagList: text('tag_list').notNull().default('[]'),
-  favorited: integer('favorited').notNull().default(0),
+  tagList: text('tag_list').array().notNull().default([]),
   favoritesCount: integer('favorites_count').notNull().default(0),
   authorId: integer('author_id')
     .notNull()
@@ -19,11 +20,13 @@ export const articles = pgTable('articles', {
   ...timestamps,
 });
 
-export const articleRelations = relations(articles, ({ one }) => ({
+export const articleRelations = relations(articles, ({ one, many }) => ({
   author: one(users, {
     fields: [articles.authorId],
     references: [users.id],
   }),
+  favorites: many(userFavoriteArticles),
+  comments: many(comments),
 }));
 
 export const insertArticleSchema = createInsertSchema(articles);

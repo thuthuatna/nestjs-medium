@@ -10,14 +10,16 @@ import { ProfilesService } from './profiles.service';
 import { CurrentUser } from 'src/common/decorators/user.decorator';
 import { IProfileResponse } from './types/profile-response.interface';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { OptionalAuthGuard } from 'src/auth/option-auth.guard';
 
 @Controller('profiles')
 export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
 
   @Get(':username')
+  @UseGuards(OptionalAuthGuard)
   getProfile(
-    @CurrentUser('userId') currentUserId: number,
+    @CurrentUser('userId') currentUserId: number | undefined,
     @Param('username') profileUsername: string,
   ): Promise<IProfileResponse> {
     return this.profilesService.getProfile(currentUserId, profileUsername);
