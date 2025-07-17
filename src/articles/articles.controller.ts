@@ -64,6 +64,14 @@ export class ArticlesController {
     return this.articlesService.getFeed(userId, paginationDto);
   }
 
+  @Get(':slug/comments')
+  getComments(
+    @CurrentUser('userId') userId: number | undefined,
+    @Param('slug') slug: string,
+  ) {
+    return this.commentsService.getComments(userId, slug);
+  }
+
   @Put(':slug')
   @UseGuards(JwtAuthGuard)
   updateArticle(
