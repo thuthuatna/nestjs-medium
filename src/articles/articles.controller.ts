@@ -11,11 +11,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { CreateCommentDto } from 'src/comments/dtos/create-comment.dto';
-import { CurrentUser } from 'src/common/decorators/user.decorator';
-import { PaginationDto } from 'src/common/dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CommentsService } from '../comments/comments.service';
+import { CreateCommentDto } from '../comments/dtos/create-comment.dto';
+import { CurrentUser } from '../common/decorators/user.decorator';
+import { PaginationDto } from '../common/dto';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dtos/create-article.dto';
 import { GetArticlesDto } from './dtos/get-articles.dto';
@@ -45,6 +45,24 @@ export class ArticlesController {
   ) {
     console.log('comment', createCommentDto);
     return this.commentsService.createComment(userId, slug, createCommentDto);
+  }
+
+  @Post(':slug/favorite')
+  @UseGuards(JwtAuthGuard)
+  favoriteArticle(
+    @CurrentUser('userId') userId: number,
+    @Param('slug') slug: string,
+  ) {
+    return this.articlesService.favoriteArticle(userId, slug);
+  }
+
+  @Delete(':slug/favorite')
+  @UseGuards(JwtAuthGuard)
+  unfavoriteArticle(
+    @CurrentUser('userId') userId: number,
+    @Param('slug') slug: string,
+  ) {
+    return this.articlesService.unfavoriteArticle(userId, slug);
   }
 
   @Get()

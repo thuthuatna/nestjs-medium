@@ -10,6 +10,8 @@ import { CreateArticleDto } from './dtos/create-article.dto';
 import { GetArticlesDto } from './dtos/get-articles.dto';
 import { UpdateArticleDto } from './dtos/update-article.dto';
 import { ArticleResponse } from './types/article-response.interface';
+import { isRecord } from '../utils/is-record';
+import { PostgresErrorCode } from '../database/postgres-error-code.service';
 
 @Injectable()
 export class ArticlesService {
@@ -365,5 +367,71 @@ export class ArticlesService {
     await this.drizzleService.db
       .delete(articles)
       .where(eq(articles.id, article.id));
+  }
+
+  async favoriteArticle(userId: number, slug: string) {
+    const article = await this.findBySlug(slug);
+    try {
+      const userFavoriteArticle = await this.drizzleService.db
+        .insert(userFavoriteArticles)
+        .values({
+          userId,
+          articleId: article.id,
+        })
+        .returning();
+      if (!userFavoriteArticle.length) {
+        throw new HttpException(
+          'Failed to favorite article',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    } catch (error) {
+      const code = error?.cause?.code;
+      if (isRecord(error) && code === PostgresErrorCode.UniqueViolation) {
+        console.log('Article already favorited');
+        throw new HttpException(
+          'Article already favorited',
+          HttpStatus.CONFLICT,
+        );
+      }
+      throw error;
+    }
+
+    return {
+      article: {
+        ...article,
+        favorited: true,
+        favoritesCount: article.favoritesCount + 1,
+      },
+    };
+  }
+
+  async unfavoriteArticle(userId: number, slug: string) {
+    const article = await this.findBySlug(slug);
+
+    const deleteResult = await this.drizzleService.db
+      .delete(userFavoriteArticles)
+      .where(
+        and(
+          eq(userFavoriteArticles.userId, userId),
+          eq(userFavoriteArticles.articleId, article.id),
+        ),
+      )
+      .returning();
+
+    if (!deleteResult.length) {
+      throw new HttpException(
+        'Failed to unfavorite article',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    return {
+      article: {
+        ...article,
+        favorited: false,
+        favoritesCount: article.favoritesCount - 1,
+      },
+    };
   }
 }
