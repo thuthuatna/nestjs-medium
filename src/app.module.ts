@@ -9,6 +9,7 @@ import { CommentsModule } from './comments/comments.module';
 import { DatabaseModule } from './database/database.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { UsersModule } from './users/users.module';
+import { ThrottlerModule, ThrottlerModuleOptions } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -27,6 +28,8 @@ import { UsersModule } from './users/users.module';
         POSTGRES_IDLE_TIMEOUT: Joi.number().default(30000),
         JWT_SECRET: Joi.string().required(),
         JWT_EXPIRATION: Joi.string().default('1h'),
+        THROTTLE_TTL: Joi.number().default(60 * 60), // 1 hour
+        THROTTLE_LIMIT: Joi.number().default(200), // 200 requests per
       }),
       isGlobal: true,
       cache: true,
@@ -52,6 +55,18 @@ import { UsersModule } from './users/users.module';
     ProfilesModule,
     ArticlesModule,
     CommentsModule,
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): ThrottlerModuleOptions => ({
+        throttlers: [
+          {
+            ttl: configService.get<number>('THROTTLE_TTL')!,
+            limit: configService.get<number>('THROTTLE_LIMIT')!,
+          },
+        ],
+      }),
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],
