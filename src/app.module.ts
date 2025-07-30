@@ -9,6 +9,7 @@ import { CommentsModule } from './comments/comments.module';
 import { DatabaseModule } from './database/database.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { UsersModule } from './users/users.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -52,6 +53,14 @@ import { UsersModule } from './users/users.module';
     ProfilesModule,
     ArticlesModule,
     CommentsModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 10,
+        },
+      ],
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

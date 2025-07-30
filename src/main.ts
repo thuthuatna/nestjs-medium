@@ -7,6 +7,8 @@ import validationOptions from './utils/validation-options';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors();
+
   app.enableShutdownHooks();
   app.setGlobalPrefix('api');
   app.enableVersioning({
