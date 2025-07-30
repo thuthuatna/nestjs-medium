@@ -43,6 +43,13 @@
       "when": 1752718956053,
       "tag": "0005_remove-favorited",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1753850476694,
+      "tag": "0006_add-indexes-and-fix-comment-schema",
+      "breakpoints": true
     }
   ]
 }

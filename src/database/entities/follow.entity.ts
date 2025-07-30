@@ -1,4 +1,4 @@
-import { pgTable, primaryKey, integer } from 'drizzle-orm/pg-core';
+import { pgTable, primaryKey, integer, index } from 'drizzle-orm/pg-core';
 import { timestamps } from '../columns.helpers';
 import { users } from './user.entity';
 import { InferInsertModel, InferSelectModel, relations } from 'drizzle-orm';
@@ -15,7 +15,13 @@ export const follows = pgTable(
       .references(() => users.id),
     ...timestamps,
   },
-  (table) => [primaryKey({ columns: [table.followerId, table.followingId] })],
+  (table) => [
+    primaryKey({
+      columns: [table.followerId, table.followingId],
+    }),
+    index('idx_follows_follower_id').on(table.followerId),
+    index('idx_follows_following_id').on(table.followingId),
+  ],
 );
 
 // Set up relations between users and follows

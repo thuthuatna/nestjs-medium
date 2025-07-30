@@ -4,7 +4,13 @@ import {
   relations,
   sql,
 } from 'drizzle-orm';
-import { integer, pgTable, primaryKey, timestamp } from 'drizzle-orm/pg-core';
+import {
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 import { articles } from './article.entity';
 import { users } from './user.entity';
 
@@ -23,7 +29,11 @@ export const userFavoriteArticles = pgTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.articleId] })],
+  (table) => [
+    primaryKey({ columns: [table.userId, table.articleId] }),
+    index('idx_user_favorite_articles_user_id').on(table.userId),
+    index('idx_user_favorite_articles_article_id').on(table.articleId),
+  ],
 );
 
 // Define relations for better querying

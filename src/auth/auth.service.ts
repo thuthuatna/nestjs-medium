@@ -9,9 +9,9 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from './dtos/create-user.dto';
+import { EmailLoginDto } from './dtos/email-login.dto';
 import { ResponseUserDto } from './dtos/response-user.dto';
 import { JwtPayloadType } from './strategies/types/jwt-payload.type';
-import { EmailLoginDto } from './dtos/email-login.dto';
 
 @Injectable()
 export class AuthService {
@@ -45,15 +45,13 @@ export class AuthService {
 
   async login(emailLoginDto: EmailLoginDto): Promise<ResponseUserDto> {
     const { email, password } = emailLoginDto;
-    console.log('emailLoginDto', email);
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
       throw new UnprocessableEntityException({
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: {
-          email: 'Email not found',
-        },
+        status: HttpStatus.UNAUTHORIZED,
+        error: 'Unauthorized',
+        message: 'Invalid email or password',
       });
     }
 
@@ -61,10 +59,9 @@ export class AuthService {
 
     if (!isValidPassword) {
       throw new UnprocessableEntityException({
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: {
-          password: 'incorrectPassword',
-        },
+        status: HttpStatus.UNAUTHORIZED,
+        error: 'Unauthorized',
+        message: 'Invalid email or password',
       });
     }
 

@@ -43,7 +43,6 @@ export class ArticlesController {
     @Param('slug') slug: string,
     @Body('comment') createCommentDto: CreateCommentDto,
   ) {
-    console.log('comment', createCommentDto);
     return this.commentsService.createComment(userId, slug, createCommentDto);
   }
 

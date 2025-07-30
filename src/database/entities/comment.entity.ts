@@ -1,21 +1,28 @@
-import { pgTable, serial, text } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { timestamps } from '../columns.helpers';
 import { InferInsertModel, InferSelectModel, relations } from 'drizzle-orm';
 import { users } from './user.entity';
 import { articles } from './article.entity';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
-export const comments = pgTable('comments', {
-  id: serial('id').primaryKey(),
-  body: text('body').notNull(),
-  authorId: serial('author_id')
-    .references(() => users.id)
-    .notNull(),
-  articleId: serial('article_id')
-    .references(() => articles.id)
-    .notNull(),
-  ...timestamps,
-});
+export const comments = pgTable(
+  'comments',
+  {
+    id: serial('id').primaryKey(),
+    body: text('body').notNull(),
+    authorId: integer('author_id')
+      .references(() => users.id)
+      .notNull(),
+    articleId: integer('article_id')
+      .references(() => articles.id)
+      .notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index('idx_comments_author_id').on(table.authorId),
+    index('idx_comments_article_id').on(table.articleId),
+  ],
+);
 
 export const commentRelations = relations(comments, ({ one }) => ({
   article: one(articles, {

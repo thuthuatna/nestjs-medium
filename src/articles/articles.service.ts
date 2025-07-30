@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { and, count, desc, eq, inArray, sql, SQL } from 'drizzle-orm';
 import { PaginationDto } from '../common/dto';
 import { DrizzleService } from '../database/drizzle.service';
@@ -15,6 +15,7 @@ import { PostgresErrorCode } from '../database/postgres-error-code.service';
 
 @Injectable()
 export class ArticlesService {
+  private readonly logger = new Logger(ArticlesService.name);
   constructor(private readonly drizzleService: DrizzleService) {}
 
   async getArticles(getArticlesDto: GetArticlesDto, currentUserId?: number) {
@@ -388,7 +389,7 @@ export class ArticlesService {
     } catch (error) {
       const code = error?.cause?.code;
       if (isRecord(error) && code === PostgresErrorCode.UniqueViolation) {
-        console.log('Article already favorited');
+        this.logger.error('Article already favorited');
         throw new HttpException(
           'Article already favorited',
           HttpStatus.CONFLICT,
