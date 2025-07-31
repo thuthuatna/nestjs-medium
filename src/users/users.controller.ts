@@ -1,10 +1,14 @@
 import { Body, Controller, Get, Put, Request, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ResponseUserDto } from '../auth/dtos/response-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { CurrentUser } from '../common/decorators/user.decorator';
-import { UpdateUserDto } from './dtos/update-user.dto';
+import { UpdateUserDto, UpdateUserRequestDto } from './dtos/update-user.dto';
 import { UsersService } from './users.service';
 
+@ApiTags('Users')
+@ApiSecurity('token')
 @Controller('user')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -25,11 +29,17 @@ export class UsersController {
 
   @Put('')
   @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: UpdateUserRequestDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User successfully updated',
+    type: ResponseUserDto,
+  })
   async updateUser(
     @Body('user') updateUserDto: UpdateUserDto,
     @Request() request,
     @CurrentUser('userId') userId: number, // Use userId from the decorator
-  ) {
+  ): Promise<ResponseUserDto> {
     // Extract the token from the Authorization header
     const authHeader = request.headers.authorization;
     const token = authHeader ? authHeader.split(' ')[1] : null;
@@ -41,6 +51,6 @@ export class UsersController {
       token,
     );
 
-    return { user: updatedUser };
+    return updatedUser;
   }
 }

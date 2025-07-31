@@ -1,18 +1,19 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { and, count, desc, eq, inArray, sql, SQL } from 'drizzle-orm';
+import { and, count, eq, inArray, sql, SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { PaginationDto } from '../common/dto';
 import { DrizzleService } from '../database/drizzle.service';
 import { articles } from '../database/entities/article.entity';
 import { follows } from '../database/entities/follow.entity';
 import { userFavoriteArticles } from '../database/entities/user-favorite-articles';
 import { users } from '../database/entities/user.entity';
+import { PostgresErrorCode } from '../database/postgres-error-code.service';
+import { schema } from '../database/schema';
+import { isRecord } from '../utils/is-record';
 import { CreateArticleDto } from './dtos/create-article.dto';
 import { GetArticlesDto } from './dtos/get-articles.dto';
 import { UpdateArticleDto } from './dtos/update-article.dto';
 import { ArticleResponse } from './types/article-response.interface';
-import { isRecord } from '../utils/is-record';
-import { PostgresErrorCode } from '../database/postgres-error-code.service';
-import { schema } from '../database/schema';
 
 @Injectable()
 export class ArticlesService {
@@ -219,69 +220,78 @@ export class ArticlesService {
   }
 
   async getFeed(currentUserId: number, paginationDto: PaginationDto) {
-    const { limit = 20, offset = 0 } = paginationDto;
-    const followResults = await this.drizzleService.db
-      .select({ followingId: follows.followingId })
-      .from(follows)
-      .where(eq(follows.followerId, currentUserId));
+    try {
+      const { limit = 20, offset = 0 } = paginationDto;
+      const followResults = await this.drizzleService.db
+        .select({ followingId: follows.followingId })
+        .from(follows)
+        .where(eq(follows.followerId, currentUserId));
 
-    if (!followResults.length) {
-      return { articles: [], articlesCount: 0 };
-    }
+      if (!followResults.length) {
+        return { articles: [], articlesCount: 0 };
+      }
+      const followingIds = followResults.map((f) => f.followingId);
 
-    const articleCountQuery = this.drizzleService.db
-      .select({ count: count(articles.id) })
-      .from(articles)
-      .leftJoin(users, eq(articles.authorId, users.id))
-      .where(
-        inArray(
-          articles.authorId,
-          followResults.map((f) => f.followingId),
-        ),
+      const ufav = alias(userFavoriteArticles, 'ufav');
+      const fav = alias(userFavoriteArticles, 'fav');
+
+      // Query to get articles in the feed
+      const articlesQuery = this.drizzleService.db
+        .select({
+          slug: articles.slug,
+          title: articles.title,
+          description: articles.description,
+          tagList: articles.tagList,
+          createdAt: articles.createdAt,
+          updatedAt: articles.updatedAt,
+          favorited:
+            sql<boolean>`CASE WHEN ${ufav.articleId} IS NOT NULL THEN TRUE ELSE FALSE END`.as(
+              'favorited',
+            ),
+          favoritesCount: sql<number>`COUNT(${userFavoriteArticles.userId})`.as(
+            'favoritesCount',
+          ),
+          author: {
+            username: users.username,
+            bio: users.bio,
+            image: users.image,
+            following: sql<boolean>`TRUE`.as('following'),
+          },
+        })
+        .from(articles)
+        .leftJoin(users, eq(articles.authorId, users.id))
+        .leftJoin(
+          ufav,
+          and(eq(ufav.userId, currentUserId), eq(ufav.articleId, articles.id)),
+        )
+        .leftJoin(fav, eq(fav.articleId, articles.id))
+        .where(inArray(articles.authorId, followingIds))
+        .groupBy(articles.id, users.id, ufav.articleId)
+        .limit(limit)
+        .offset(offset);
+
+      // Get the count of articles in the feed
+      const countArticlesQuery = this.drizzleService.db
+        .select({ count: count(articles.id) })
+        .from(articles)
+        .where(inArray(articles.authorId, followingIds));
+
+      const [articleCountResult, articlesResults] = await Promise.all([
+        countArticlesQuery.execute(),
+        articlesQuery.execute(),
+      ]);
+
+      return {
+        articles: articlesResults,
+        articlesCount: articleCountResult[0].count,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching feed articles', error);
+      throw new HttpException(
+        'Failed to fetch feed articles',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
-
-    const articlesQuery = this.drizzleService.db
-      .select({
-        user: { username: users.username, bio: users.bio, image: users.image },
-        article: articles,
-      })
-      .from(articles)
-      .leftJoin(users, eq(articles.authorId, users.id))
-      .where(
-        inArray(
-          articles.authorId,
-          followResults.map((f) => f.followingId),
-        ),
-      )
-      .limit(limit)
-      .offset(offset);
-
-    const [articleCountResult, articlesResults] = await Promise.all([
-      articleCountQuery,
-      articlesQuery,
-    ]);
-
-    const userFavoritesIds = currentUserId
-      ? await this.getUserFavorites(currentUserId)
-      : [];
-
-    // Map results
-    const articlesWithFavorited = articlesResults.map((result) => ({
-      slug: result.article.slug,
-      title: result.article.title,
-      description: result.article.description,
-      tagList: result.article.tagList,
-      createdAt: result.article.createdAt,
-      updatedAt: result.article.updatedAt,
-      favoritedCount: result.article.favoritesCount,
-      favorited: userFavoritesIds.includes(result.article.id),
-      author: result.user,
-    }));
-
-    return {
-      articles: articlesWithFavorited,
-      articlesCount: articleCountResult[0].count,
-    };
+    }
   }
 
   async updateArticle(

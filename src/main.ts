@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import validationOptions from './utils/validation-options';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerTokenPrefixMiddleware } from './common/middlewares/swagger-token-prefix.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -22,15 +23,27 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 4000;
 
+  app.use(new SwaggerTokenPrefixMiddleware().use);
   const config = new DocumentBuilder()
     .setTitle('Medium')
     .setDescription('The medium API description')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'Authorization', // <- header key name
+        in: 'header',
+        description: 'Enter token as: token <your-token>',
+      },
+      'token', // <- security name used in @ApiSecurity()
+    )
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, documentFactory, {
-    swaggerOptions: { defaultModelsExpandDepth: -1 },
+    swaggerOptions: {
+      defaultModelsExpandDepth: -1,
+      persistAuthorization: true,
+    },
   });
 
   await app.listen(port);

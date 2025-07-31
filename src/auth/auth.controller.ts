@@ -65,7 +65,6 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Login with email and password' })
-  @ApiBearerAuth()
   @ApiBody({ type: EmailLoginRequestDto })
   @ApiResponse({
     status: 200,
