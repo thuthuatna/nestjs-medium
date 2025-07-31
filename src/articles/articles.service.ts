@@ -12,110 +12,124 @@ import { UpdateArticleDto } from './dtos/update-article.dto';
 import { ArticleResponse } from './types/article-response.interface';
 import { isRecord } from '../utils/is-record';
 import { PostgresErrorCode } from '../database/postgres-error-code.service';
+import { schema } from '../database/schema';
 
 @Injectable()
 export class ArticlesService {
   private readonly logger = new Logger(ArticlesService.name);
   constructor(private readonly drizzleService: DrizzleService) {}
 
+  /**
+   * Get articles based on filters and pagination.
+   * @param getArticlesDto The DTO containing filter and pagination options.
+   * @param currentUserId The ID of the current user (optional).
+   * @returns A promise that resolves to the articles and their count.
+   */
   async getArticles(getArticlesDto: GetArticlesDto, currentUserId?: number) {
-    const { limit = 20, offset = 0, tag, author, favorited } = getArticlesDto;
+    try {
+      const { limit = 20, offset = 0, tag, author, favorited } = getArticlesDto;
 
-    const conditions = await this.buildConditions({ tag, author, favorited });
-    if (conditions === null) {
-      return { articles: [], articlesCount: 0 };
-    }
+      // Combine filters using AND
+      const conditions: SQL<unknown>[] = [];
+      if (tag) {
+        if (tag && typeof tag === 'string' && tag.trim() !== '') {
+          conditions.push(sql`${tag} = ANY(${articles.tagList})`);
+        }
+      }
+      if (author) {
+        const authorResults = await this.drizzleService.db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.username, author));
 
-    // query to get total article count
-    const articleCountQuery = this.drizzleService.db
-      .select({ count: count(articles.id) })
-      .from(articles)
-      .leftJoin(users, eq(articles.authorId, users.id))
-      .where(and(...(conditions || [])));
+        if (authorResults.length) {
+          conditions.push(eq(articles.authorId, authorResults[0].id));
+        }
+      }
+      if (favorited) {
+        conditions.push(
+          sql`EXISTS (
+          SELECT 1
+          FROM ${schema.userFavoriteArticles}
+          JOIN ${schema.users} ON ${schema.users.id} = ${schema.userFavoriteArticles.userId}
+          WHERE ${schema.userFavoriteArticles.articleId} = ${schema.articles.id}
+          AND ${schema.users.username} = ${favorited}
+        )`,
+        );
+      }
 
-    // query to get articles with pagination and conditions
-    const articlesQuery = this.drizzleService.db
-      .select({
-        user: { username: users.username, bio: users.bio, image: users.image },
-        article: articles,
-      })
-      .from(articles)
-      .leftJoin(users, eq(articles.authorId, users.id))
-      .limit(limit)
-      .offset(offset)
-      .orderBy(desc(articles.createdAt))
-      .where(and(...(conditions || [])));
-
-    const userFavoritesIds = currentUserId
-      ? await this.getUserFavorites(currentUserId)
-      : [];
-
-    const [articleCountResult, articlesResults] = await Promise.all([
-      articleCountQuery,
-      articlesQuery,
-    ]);
-
-    // Map results
-    const articlesWithFavorited = articlesResults.map((result) => ({
-      slug: result.article.slug,
-      title: result.article.title,
-      description: result.article.description,
-      tagList: result.article.tagList,
-      createdAt: result.article.createdAt,
-      updatedAt: result.article.updatedAt,
-      favoritedCount: result.article.favoritesCount,
-      favorited: userFavoritesIds.includes(result.article.id),
-      author: result.user,
-    }));
-
-    return {
-      articles: articlesWithFavorited,
-      articlesCount: articleCountResult[0].count,
-    };
-  }
-
-  private async buildConditions({
-    tag,
-    author,
-    favorited,
-  }: Partial<GetArticlesDto>): Promise<SQL<unknown>[] | null> {
-    const conditions: SQL<unknown>[] = [];
-
-    // filter by tag
-    if (tag) {
-      conditions.push(sql`${tag} = ANY(${articles.tagList})`);
-    }
-
-    // filter by author
-    if (author) {
-      const authorResults = await this.drizzleService.db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.username, author));
-
-      if (!authorResults.length) return null;
-      conditions.push(eq(articles.authorId, authorResults[0].id));
-    }
-
-    // filter by favorited
-    if (favorited) {
-      const favoritedResults = await this.drizzleService.db
-        .select({ articleId: userFavoriteArticles.articleId })
-        .from(users)
-        .innerJoin(
-          userFavoriteArticles,
-          eq(users.id, userFavoriteArticles.userId),
+      // base query to get articles
+      const query = this.drizzleService.db
+        .select({
+          slug: schema.articles.slug,
+          title: schema.articles.title,
+          description: schema.articles.description,
+          tagList: schema.articles.tagList,
+          createdAt: schema.articles.createdAt,
+          updatedAt: schema.articles.updatedAt,
+          favorited: favorited
+            ? sql<boolean>`EXISTS (
+            SELECT 1
+            FROM ${schema.userFavoriteArticles}
+            JOIN ${schema.users} ON ${schema.users.id} = ${schema.userFavoriteArticles.userId}
+            WHERE ${schema.userFavoriteArticles.articleId} = ${schema.articles.id}
+            AND ${schema.users.username} = ${sql.placeholder('favorited')}
+          )`.as('favorited')
+            : sql<boolean>`FALSE`.as('favorited'),
+          favoritesCount: sql<number>`COUNT(${userFavoriteArticles.userId})`.as(
+            'favoritesCount',
+          ),
+          author: {
+            username: schema.users.username,
+            bio: schema.users.bio,
+            image: schema.users.image,
+            following: sql<boolean>`EXISTS (
+            SELECT 1
+            FROM ${schema.follows}
+            WHERE ${schema.follows.followerId} = ${currentUserId}
+            AND ${schema.follows.followingId} = ${schema.articles.authorId}
+          )`.as('following'),
+          },
+        })
+        .from(schema.articles)
+        .leftJoin(schema.users, eq(schema.articles.authorId, schema.users.id))
+        .leftJoin(
+          schema.userFavoriteArticles,
+          eq(schema.userFavoriteArticles.articleId, schema.articles.id),
         )
-        .where(eq(users.username, favorited));
+        .where(and(...conditions))
+        .groupBy(articles.id, users.id);
 
-      if (!favoritedResults.length) return null;
-      const favoritesIds = favoritedResults.map((e) => e.articleId);
-      conditions.push(inArray(articles.id, favoritesIds));
+      // query count of articles
+      const countQuery = this.drizzleService.db
+        .select({ count: count(schema.articles.id) })
+        .from(schema.articles)
+        .leftJoin(schema.users, eq(schema.articles.authorId, schema.users.id))
+        .where(and(...conditions));
+
+      const [articleCountResult, articlesResults] = await Promise.all([
+        countQuery.execute(),
+        query.limit(limit).offset(offset).execute(),
+      ]);
+
+      return {
+        articles: articlesResults,
+        articlesCount: articleCountResult[0].count,
+      };
+    } catch (error) {
+      this.logger.error('Error fetching articles', error);
+      throw new HttpException(
+        'Failed to fetch articles',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-
-    return conditions;
   }
 
+  /**
+   * Get the list of article IDs favorited by a user.
+   * @param userId The ID of the user.
+   * @returns A promise that resolves to an array of article IDs.
+   */
   private async getUserFavorites(userId: number): Promise<number[]> {
     const favorites = await this.drizzleService.db
       .select({ articleId: userFavoriteArticles.articleId })

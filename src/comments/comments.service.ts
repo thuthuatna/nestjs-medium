@@ -58,13 +58,19 @@ export class CommentsService {
       .leftJoin(users, eq(comments.authorId, users.id))
       .where(eq(comments.articleId, articleResults[0].id));
 
-    const commentsWithAuthor = commentsResults.map((result) => ({
-      id: result.comments.id,
-      body: result.comments.body,
-      createdAt: result.comments.createdAt,
-      updatedAt: result.comments.updatedAt,
-      author: result.author,
-    }));
+    const commentsWithAuthor = commentsResults.map((result) => {
+      const safeAuthor =
+        result.author !== null
+          ? (({ password, ...rest }) => rest)(result.author)
+          : null;
+      return {
+        id: result.comments.id,
+        body: result.comments.body,
+        createdAt: result.comments.createdAt,
+        updatedAt: result.comments.updatedAt,
+        author: safeAuthor, // không có password
+      };
+    });
     return {
       comments: commentsWithAuthor,
     };
